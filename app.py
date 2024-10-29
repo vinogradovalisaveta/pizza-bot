@@ -8,11 +8,11 @@ from aiogram.enums import ParseMode
 from aiogram.types import BotCommandScopeAllPrivateChats
 from dotenv import load_dotenv
 
-from common.bot_command_list import private
+# from common.bot_command_list import private
 from middleware.db import DataBaseSession
 
 load_dotenv()
-from database.engine import create_db, session_maker
+from database.engine import create_db, session_maker, drop_db
 from handlers.user_private import router as user_router
 from handlers.user_groups import router as group_router
 from handlers.admin_private import router as admin_router
@@ -52,37 +52,57 @@ dp.include_router(admin_router)
 """
 
 
-async def main() -> None:
+# async def main() -> None:
+#
+#     logging.basicConfig(level=logging.INFO)
+#
+#     await create_db()
+#
+#     dp.update.middleware(DataBaseSession(session_pool=session_maker))
+#
+#     # для того, чтобы бот не отвечал на сообщения, которые он пропустил
+#     # пока был офлайн
+#     await bot.delete_webhook(drop_pending_updates=True)
+#
+#     """
+#     commands - это список объектов BotCommand, которые определяют команды
+#     в меню. Каждая команда имеет два атрибута:
+#     * command — имя команды (например, /start, /help).
+#     * description — краткое описание команды.
+#
+#     scope определяет, для каких чатов будут доступны указанные команды.
+#     BotCommandScopeAllPrivateChats() означает, что команды будут доступны во
+#     всех личных чатах с ботом.
+#
+#     bot.set_my_commands() используется только один раз при запуске бота,
+#     чтобы обновить главное меню.
+#     """
+#     await bot.set_my_commands(commands=private, scope=BotCommandScopeAllPrivateChats())
+#
+#     # allowed_updates определяет какие типы событий бот будет получать
+#     # указание конкретных событий позволяет снизить нагрузку на сервер,
+#     # улучшить производительность (бот будет быстрее реагировать), упростить
+#     # обработку событий
+#     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
-    logging.basicConfig(level=logging.INFO)
 
+async def  on_startup(bot):
+    # await drop_db()
     await create_db()
+
+
+async def on_shutdown(bot):
+    print('бот лег')
+
+
+async def main():
+    dp.startup.register(on_startup)
+    dp.shutdown.register(on_shutdown)
 
     dp.update.middleware(DataBaseSession(session_pool=session_maker))
 
-    # для того, чтобы бот не отвечал на сообщения, которые он пропустил
-    # пока был офлайн
     await bot.delete_webhook(drop_pending_updates=True)
-
-    """
-    commands - это список объектов BotCommand, которые определяют команды
-    в меню. Каждая команда имеет два атрибута:
-    * command — имя команды (например, /start, /help).
-    * description — краткое описание команды.
-
-    scope определяет, для каких чатов будут доступны указанные команды.
-    BotCommandScopeAllPrivateChats() означает, что команды будут доступны во
-    всех личных чатах с ботом.
-    
-    bot.set_my_commands() используется только один раз при запуске бота,
-    чтобы обновить главное меню.
-    """
-    await bot.set_my_commands(commands=private, scope=BotCommandScopeAllPrivateChats())
-
-    # allowed_updates определяет какие типы событий бот будет получать
-    # указание конкретных событий позволяет снизить нагрузку на сервер,
-    # улучшить производительность (бот будет быстрее реагировать), упростить
-    # обработку событий
+    await bot.delete_my_commands(scope=BotCommandScopeAllPrivateChats())
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
 
