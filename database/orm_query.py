@@ -1,78 +1,62 @@
-import math
-
 from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
-from database.models import Product
-
-
-# paginator
+from database.models import Product, Banner, Category, User, Cart
 
 
-class Paginator:
-    """
-    класс для разбиения списка объектов на страницы
+# banners
 
-    атрибуты:
-    array (list | tuple): список или кортеж объектов, которые нужно разбить
-    на страницы
-    page (int, optional): номер текущей страницы, по умолчанию = 1
-    per_page (int, optional): количество объектов на странице, по умолчанию = 1
-    """
 
-    def __init__(self, array: list | tuple, page: int = 1, per_page: int = 1):
-        self.array = array
-        self.per_page = per_page
-        self.page = page
-        self.len = len(self.array)
-        self.pages = math.ceil(self.len / self.per_page)
-
-    def __get_slice(self):
-        """
-        вычисляет начальный и конечный индексы среза на основе номера
-        текущей страницы (self.page) и количества объеков на странице
-        (self.per_page)
-        :return: list: срез списка объектов для запрашиваемой страницы
-        """
-
-        # рассчитывает смещение от начала списка до первого объекта на
-        # текущей странице
-        start = (self.page - 1) * self.per_page
-
-        # вычисляет конечный индекс среза
-        stop = start + self.per_page
-        return self.array[start:stop]
-
-    def get_page(self):
-        """
-        :return: срез списка объектов для конкретной страницы
-        """
-        page_items = self.__get_slice()
-        return page_items
-
-    def has_next(self):
-        if self.page < self.pages:
-            return self.page + 1
-        return False
-
-    def has_previous(self):
-        if self.page > 1:
-            return self.page - 1
-        return False
-
-    def get_next(self):
-        if self.page < self.pages:
-            self.page += 1
-            return self.get_page()
-        raise IndexError(f"next page does not exist. use has_next() to check before")
-
-    def get_previous(self):
-        if self.page > 1:
-            self.page -= 1
-            return self.__get_slice()
-        raise IndexError(
-            f"previous page does not exist. use has_previous() to check before"
+async def orm_add_banner_description(session: AsyncSession, data: dict):
+    query = select(Banner)
+    result = await session.execute(query)
+    if result.first():
+        return session.add_all(
+            [
+                Banner(name=name, description=description)
+                for name, description in data.items()
+            ]
         )
+    await session.commit()
+
+
+async def orm_change_banner_image(session: AsyncSession, name: str, image: str):
+    query = update(Banner).where(Banner.name == name).values(image=image)
+    await session.execute(query)
+    await session.commit()
+
+
+async def orm_get_banner(session: AsyncSession, page: str):
+    query = select(Banner).where(Banner.name == page)
+    result = await session.execute(query)
+    return result.scalar()
+
+
+async def orm_get_info_pages(session: AsyncSession):
+    query = select(Category)
+    result = await session.execute(query)
+    return result.scalars().all()
+
+
+# categories
+
+
+async def orm_get_categories(session: AsyncSession):
+    query = select(Category)
+    result = await session.execute(query)
+    return result.scalars().all()
+
+
+async def orm_create_categories(session: AsyncSession, categories: list):
+    query = select(Category)
+    result = await session.execute(query)
+    if result.first() is None:
+        session.add_all([Category(name=name) for name in categories])
+        await session.commit()
+
+
+# CRUD items
 
 
 async def orm_add_product(session: AsyncSession, data: dict):
@@ -81,13 +65,14 @@ async def orm_add_product(session: AsyncSession, data: dict):
         description=data["description"],
         price=float(data["price"]),
         image=data["image"],
+        category_id=int(data["category"]),
     )
     session.add(obj)
     await session.commit()
 
 
-async def orm_get_products(session: AsyncSession):
-    query = select(Product)
+async def orm_get_products(session: AsyncSession, category_id):
+    query = select(Product).where(Product.category_id == int(category_id))
     result = await session.execute(query)
     return result.scalars().all()
 
@@ -107,6 +92,7 @@ async def orm_update_product(session: AsyncSession, product_id: int, data):
             description=data["description"],
             price=float(data["price"]),
             image=data["image"],
+            category_id=int(data["category"]),
         )
     )
     await session.execute(query)
@@ -117,3 +103,72 @@ async def orm_delete_product(session: AsyncSession, product_id: int):
     query = delete(Product).where(Product.id == product_id)
     await session.execute(query)
     await session.commit()
+
+
+# users
+
+
+async def orm_add_user(
+    session: AsyncSession, user_id: int, name: str | None, phone: str | None
+):
+    query = select(User).where(User.user_id == user_id)
+    result = await session.execute(query)
+    if result.first() is None:
+        session.add(User(user_id=user_id, name=name, phone=phone))
+        await session.commit()
+
+
+# cart
+
+
+async def orm_add_to_cart(session: AsyncSession, user_id: int, product_id: int):
+    query = (
+        select(Cart)
+        .where(Cart.user_id == user_id, Cart.product_id == product_id)
+        .options(joinedload(Cart.product))
+    )
+    cart = await session.execute(query)
+    cart = cart.scalar()
+    if cart:
+        cart.quantity += 1
+        await session.commit()
+        return cart
+    else:
+        session.add(Cart(user_id=user_id, product_id=product_id, quantity=1))
+        await session.commit()
+
+
+async def orm_get_user_carts(session: AsyncSession, user_id: int):
+    query = (
+        select(Cart).filter(Cart.user_id == user_id).options(joinedload(Cart.product))
+    )
+    result = await session.execute(query)
+    return result.scalars().all()
+
+
+async def orm_delete_from_cart(session: AsyncSession, user_id: int, product_id: int):
+    query = delete(Cart).where(Cart.user_id == user_id, Cart.product_id == product_id)
+    await session.execute(query)
+    await session.commit()
+
+
+async def orm_reduce_product_in_cart(
+    session: AsyncSession, user_id: int, product_id: int
+):
+    query = (
+        select(Cart)
+        .where(Cart.user_id == user_id, Cart.product_id == product_id)
+        .options(joinedload(Cart.product))
+    )
+    cart = await session.execute(query)
+    cart = cart.scalar()
+
+    if cart:
+        if cart.quantity > 1:
+            cart.quantity -= 1
+            await session.commit()
+            return True
+        else:
+            await orm_delete_from_cart(session, user_id, product_id)
+            await session.commit()
+            return False

@@ -59,12 +59,12 @@ class Cart(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("", ondelete="CASCADE"), nullable=False
+        ForeignKey("user.user_id", ondelete="CASCADE"), nullable=False
     )
     product_id: Mapped[int] = mapped_column(
-        ForeignKey("", ondelete="CASCADE"), nullable=False
+        ForeignKey("product.id", ondelete="CASCADE"), nullable=False
     )
     quantity: Mapped[int] = mapped_column(Integer)
 
-    user: Mapped["User"] = mapped_column(backref="cart")
-    product: Mapped["Product"] = mapped_column(backref="cart")
+    user: Mapped["User"] = relationship(backref="cart")
+    product: Mapped["Product"] = relationship(backref="cart")
