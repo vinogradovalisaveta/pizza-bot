@@ -86,13 +86,13 @@ dp.include_router(admin_router)
 #     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
 
-async def  on_startup(bot):
+async def on_startup(bot):
     # await drop_db()
     await create_db()
 
 
 async def on_shutdown(bot):
-    print('бот лег')
+    print("бот лег")
 
 
 async def main():

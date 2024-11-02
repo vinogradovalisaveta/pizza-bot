@@ -22,20 +22,24 @@ router.message.filter(ChatTypeFilter(["private"]))
 
 @router.message(CommandStart())
 async def start_command(message: Message):
-    await message.answer('привет, я виртуальный помощник',
-                         reply_markup=get_callback_buttons(buttons={
-                             'нажми меня': 'some_1',
-                         }))
+    await message.answer(
+        "привет, я виртуальный помощник",
+        reply_markup=get_callback_buttons(
+            buttons={
+                "нажми меня": "some_1",
+            }
+        ),
+    )
 
 
-@router.callback_query(F.data.startswith('some_'))
+@router.callback_query(F.data.startswith("some_"))
 async def counter(callback: CallbackQuery):
-    number = int(callback.data.split('_')[-1])
+    number = int(callback.data.split("_")[-1])
     await callback.message.edit_text(
-        text=f'нажатий - {number}',
-        reply_markup=get_callback_buttons(buttons={
-            'нажми еще раз': f'some_{number+1}'
-        })
+        text=f"нажатий - {number}",
+        reply_markup=get_callback_buttons(
+            buttons={"нажми еще раз": f"some_{number+1}"}
+        ),
     )
 
 
