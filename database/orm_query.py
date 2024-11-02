@@ -9,16 +9,17 @@ from database.models import Product, Banner, Category, User, Cart
 
 
 async def orm_add_banner_description(session: AsyncSession, data: dict):
+    print(f"DATA = {data.items()}")
     query = select(Banner)
     result = await session.execute(query)
-    if result.first():
-        return session.add_all(
+    if result.first() is None:
+        session.add_all(
             [
                 Banner(name=name, description=description)
                 for name, description in data.items()
             ]
         )
-    await session.commit()
+        await session.commit()
 
 
 async def orm_change_banner_image(session: AsyncSession, name: str, image: str):
@@ -34,7 +35,7 @@ async def orm_get_banner(session: AsyncSession, page: str):
 
 
 async def orm_get_info_pages(session: AsyncSession):
-    query = select(Category)
+    query = select(Banner)
     result = await session.execute(query)
     return result.scalars().all()
 

@@ -90,7 +90,7 @@ async def add_image2(message: Message, state: FSMContext, session: AsyncSession)
 @router.message(AddBanner.image, F.photo)
 async def add_banner(message: Message, state: FSMContext, session: AsyncSession):
     image_id = message.photo[-1].file_id
-    for_page = message.caption.strip()
+    for_page = message.caption.strip().lower()
     pages_names = [page.name for page in await orm_get_info_pages(session)]
     if for_page not in pages_names:
         await message.answer(
